@@ -30,6 +30,15 @@ E = html.escape
 PAGES = []  # for sitemap
 
 
+def _ver(rel):
+    import hashlib
+    return hashlib.md5((SRC / rel).read_bytes()).hexdigest()[:8]
+
+
+# cache-busting: /assets/* is cached for a week, so every CSS/JS URL carries its content hash
+ASSET_V = {f"/{r}": f"/{r}?v={_ver(r)}" for r in ("assets/css/site.css", "assets/js/app.js", "assets/js/finder.js")}
+
+
 # ---------- product helpers ----------
 def age_groups(p):
     lo, hi = p["age_min"], p["age_max"]
@@ -161,6 +170,8 @@ def page(path, title, desc, body, active="", jsonld=None, og=None, extra=""):
 </body>
 </html>
 """
+    for a, v in ASSET_V.items():
+        doc = doc.replace(f'"{a}"', f'"{v}"')
     out = DIST / path.lstrip("/") / "index.html" if path.endswith("/") else DIST / path.lstrip("/")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(doc)
