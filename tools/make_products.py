@@ -8,8 +8,10 @@ Links are built as https://www.amazon.com/dp/<ASIN>?tag=giftscope-20
 import csv
 import json
 import pathlib
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
 DATA = ROOT / "data"
 TAG = "giftscope-20"
 CHECKED = "2026-10-02"
@@ -362,6 +364,27 @@ def main():
             "blurb": blurb,
             "url": f"https://www.amazon.com/dp/{asin}?tag={TAG}",
         })
+    # second batch (tools/editorial_2.py + data/batch2_*.txt)
+    from editorial_2 import ED2
+    new = {}
+    for vf in sorted(DATA.glob("batch2_*.txt")):
+        for tok in vf.read_text().split():
+            a, p, r, n, im = tok.split("|")
+            new[a] = (p, r, n, im)
+    seen = {p["asin"] for p in out}
+    for asin, (name, theme, ages_s, top, blurb) in ED2.items():
+        if asin in seen:
+            raise SystemExit(f"duplicate ASIN {asin}")
+        if asin not in new:
+            raise SystemExit(f"no data for {asin} {name}")
+        p, r, n, im = new[asin]
+        a0, a1 = ages(ages_s)
+        out.append({"asin": asin, "name": name, "theme": THEME_FIX.get(theme, theme), "age_min": a0, "age_max": a1,
+                    "price": round(float(p), 2), "rating": float(r), "reviews": int(n), "image": im, "top": top,
+                    "blurb": blurb, "url": f"https://www.amazon.com/dp/{asin}?tag={TAG}"})
+    missing = set(new) - set(ED2)
+    if missing:
+        raise SystemExit(f"data without editorial: {missing}")
     extra = set(ED) - set(rows) - SKIP
     if extra:
         raise SystemExit(f"editorial without product: {extra}")

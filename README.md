@@ -7,6 +7,7 @@ Static site, Python stdlib only. Netlify runs `python3 tools/build.py` and publi
 - `data/finalists.csv` — selected products (asin, name, price, rating, theme, ages, image id).
 - `data/verified_YYYY-MM-DD.txt` — latest price check (asin,price,rating,reviews). The newest file wins.
 - `tools/make_products.py` — editorial (display name, interest, top pick, blurb) → `data/products.json`.
+- Second batch (158 products, 2 Oct 2026): `tools/editorial_2.py` (name, interest, ages, top pick, blurb) + `data/batch2_2026-10-02.txt` (asin|price|rating|reviews|image).
 - `data/site.json` — age groups, interests, budgets and their page copy.
 
 ## Update prices
