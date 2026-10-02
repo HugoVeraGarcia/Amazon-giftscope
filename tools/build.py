@@ -24,6 +24,7 @@ CHECKED_TXT = f"{CHECKED:%b} {CHECKED.day}, {CHECKED.year}"
 AGES = SITE["ages"]
 THEMES = SITE["themes"]
 BUDGETS = SITE["budgets"]
+GUIDES = json.load(open(ROOT / "data" / "guides.json"))["guides"]
 THEME = {t["slug"]: t for t in THEMES}
 E = html.escape
 PAGES = []  # for sitemap
@@ -92,7 +93,7 @@ def ranked(items):
 # ---------- layout ----------
 ICON = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="13" width="24" height="15" rx="2.5" fill="currentColor"/><rect x="2.5" y="9" width="27" height="6" rx="2" fill="currentColor" opacity=".85"/><rect x="14.5" y="9" width="3" height="19" fill="#fff" opacity=".9"/><path d="M16 9c-2-5-8-6-8-2.5S13 9 16 9zm0 0c2-5 8-6 8-2.5S19 9 16 9z" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
 
-NAV = [("/gift-finder/", "Gift Finder"), ("/age/", "By Age"), ("/interest/", "By Interest"),
+NAV = [("/gift-finder/", "Gift Finder"), ("/guides/", "Guides"), ("/age/", "By Age"), ("/interest/", "By Interest"),
        ("/budget/", "By Budget"), ("/all-gifts/", "All Gifts")]
 
 
@@ -116,7 +117,8 @@ FOOTER = f"""<footer class="foot">
    <p class="small">Part of the <a href="https://scooters.specversus.com/">SpecVersus</a> family of buying guides.</p></div>
   <div><h2>By age</h2>{''.join(f'<a href="/age/{g["slug"]}/">{E(g["label"])} <span>({g["range"]})</span></a>' for g in AGES)}</div>
   <div><h2>By budget</h2>{''.join(f'<a href="/budget/{b["slug"]}/">{E(b["title"])}</a>' for b in BUDGETS)}</div>
-  <div><h2>GiftScope</h2><a href="/gift-finder/">Gift Finder</a><a href="/about/">About</a><a href="/disclosure/">Affiliate disclosure</a><a href="/privacy/">Privacy</a></div>
+  <div><h2>Gift guides</h2>{''.join(f'<a href="/guides/{g["slug"]}/">{E(g["title"])}</a>' for g in GUIDES)}</div>
+  <div><h2>GiftScope</h2><a href="/gift-finder/">Gift Finder</a><a href="/guides/">All gift guides</a><a href="/about/">About</a><a href="/disclosure/">Affiliate disclosure</a><a href="/privacy/">Privacy</a></div>
  </div>
  <div class="wrap foot__legal">
   <p><strong>As an Amazon Associate I earn from qualifying purchases.</strong> Links to Amazon.com are affiliate links: we may earn a commission at no extra cost to you.</p>
@@ -297,6 +299,10 @@ def build_home():
  <div class="grid">{''.join(card(p) for p in tops)}</div>
  {note()}
 </div></section>
+<section class="band band--soft"><div class="wrap">
+ <div class="sec-head"><h2 class="h2">Gift guides</h2><a href="/guides/">All guides →</a></div>
+ {guide_tiles()}
+</div></section>
 <section class="band band--pine"><div class="wrap">
  <div class="sec-head"><h2 class="h2">Shop by budget</h2></div>
  {pills_budget()}
@@ -386,6 +392,103 @@ def build_finder():
          body, active="/gift-finder/", jsonld=[cld])
 
 
+
+# ---------- guides ----------
+def guide_items(g):
+    r = g["rules"]
+    out = []
+    for p in P:
+        if "age" in r and not (p["age_min"] <= r["age"] <= p["age_max"]):
+            continue
+        if "themes" in r and p["theme"] not in r["themes"]:
+            continue
+        if p["theme"] in r.get("exclude_themes", []) and p["asin"] not in r.get("include", []):
+            continue
+        if not (r.get("min_price", 0) <= p["price"] <= r.get("max_price", 1e9)):
+            continue
+        if p["asin"] in r.get("exclude", []):
+            continue
+        out.append(p)
+    inc = [next(p for p in P if p["asin"] == a) for a in r.get("include", [])]
+    rest = [p for p in ranked(out) if p not in inc]
+    return ranked(inc + rest[: r.get("limit", 15) - len(inc)])
+
+
+def guide_tiles():
+    out = []
+    for g in GUIDES:
+        items = guide_items(g)
+        thumbs = "".join(f'<img src="{img(p["image"], 200)}" alt="" loading="lazy" width="100" height="100">' for p in items[:3])
+        out.append(f'<a class="gtile" href="/guides/{g["slug"]}/"><span class="gtile__imgs">{thumbs}</span><span class="gtile__body"><b>{g["emoji"]} {E(g["title"])}</b><span>{E(g["pin"])}</span><small>{len(items)} picks · from {money(min(p["price"] for p in items))}</small></span></a>')
+    return '<div class="gtiles">' + "".join(out) + "</div>"
+
+
+def quick_picks(items):
+    best = items[0]
+    rest = [p for p in items if p is not best]
+    budget = next((p for p in sorted(rest, key=lambda p: -p["score"]) if p["price"] <= 25), None)
+    splurge = max(rest, key=lambda p: (p["price"] >= 50, p["score"] if p["price"] >= 50 else -p["price"]), default=None)
+    rows = [("Best overall", best), ("Best under $25", budget)]
+    if splurge and splurge["price"] > best["price"] and splurge is not budget:
+        rows.append(("Worth the splurge", splurge))
+    li = "".join(f'<li><span class="qp__lbl">{lbl}</span><a href="#pick-{p["asin"]}">{E(p["name"])}</a><span class="qp__price">{money(p["price"])}</span></li>' for lbl, p in rows if p)
+    return f'<aside class="qp"><h2>Quick picks</h2><ol>{li}</ol></aside>'
+
+
+def pick(p, i):
+    th = THEME[p["theme"]]
+    return f"""<article class="pick" id="pick-{p['asin']}">
+ <a class="pick__media" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener" tabindex="-1" aria-hidden="true"><span class="card__rank">#{i}</span><img src="{img(p['image'])}" alt="" loading="lazy" width="500" height="500"></a>
+ <div class="pick__body">
+  <p class="card__meta"><span class="chip-age">Ages {age_label(p)}</span><span>{th['emoji']} {E(th['label'])}</span>{'<span class="card__pick card__pick--inline">Top pick</span>' if p['top'] else ''}</p>
+  <h3 class="pick__title"><a href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">{i}. {E(p['name'])}</a></h3>
+  <p>{E(p['blurb'])}</p>
+  <p class="card__rating"><span class="stars" style="--r:{p['rating']}" aria-hidden="true"></span><span>{p['rating']:.1f}</span><span class="muted">({reviews_txt(p['reviews'])} ratings on Amazon)</span></p>
+  <div class="card__buy"><span class="price">{money(p['price'])}<sup>*</sup></span><a class="btn btn--amz" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div>
+ </div>
+</article>"""
+
+
+def build_guides():
+    for g in GUIDES:
+        items = guide_items(g)
+        if len(items) < 6:
+            raise SystemExit(f"guide {g['slug']} has only {len(items)} items")
+        path = f"/guides/{g['slug']}/"
+        cr, cld = crumbs([("/", "Home"), ("/guides/", "Gift Guides"), (None, g["title"])])
+        tips = "".join(f"<li><b>{E(t)}:</b> {E(d)}</li>" for t, d in g["tips"])
+        faq = "".join(f"<details><summary>{E(q)}</summary><p>{E(a)}</p></details>" for q, a in g["faq"])
+        others = [o for o in GUIDES if o is not g]
+        body = f"""<section class="phead"><div class="wrap wrap--narrow">{cr}
+ <h1><span class="phead__emoji" aria-hidden="true">{g['emoji']}</span>{E(g['title'])} ({CHECKED:%Y})</h1>
+ {''.join(f'<p class="lead">{E(x)}</p>' for x in g['intro'])}
+ <p class="phead__facts"><span>{len(items)} picks</span><span>{money(min(p['price'] for p in items))} – {money(max(p['price'] for p in items))}</span><span>Updated {CHECKED_TXT}</span></p>
+ <p class="disclose">We may earn a commission from Amazon links, at no extra cost to you.</p>
+</div></section>
+<section class="wrap wrap--narrow guide">
+ {quick_picks(items)}
+ <h2 class="h2">How to choose</h2>
+ <ul class="tips">{tips}</ul>
+ <h2 class="h2">Our picks</h2>
+ <div class="picks">{''.join(pick(p, i + 1) for i, p in enumerate(items))}</div>
+ {note()}
+ <div class="cta-box"><b>Still not sure?</b><span>Answer 3 quick questions and get gifts matched to their age, interests and your budget.</span><a class="btn btn--primary" href="/gift-finder/">Try the Gift Finder</a></div>
+ <h2 class="h2">FAQ</h2>
+ <div class="faq">{faq}</div>
+</section>
+{related_block("More gift guides", '<div class="pills">' + ''.join(f'<a class="pill pill--sm" href="/guides/{o["slug"]}/"><b>{o["emoji"]} {E(o["title"])}</b></a>' for o in others) + '</div>')}"""
+        faq_ld = {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in g["faq"]]}
+        art_ld = {"@context": "https://schema.org", "@type": "Article", "headline": g["title"], "dateModified": DB["checked"],
+                  "image": img(items[0]["image"], 1000), "publisher": {"@type": "Organization", "name": "GiftScope"}}
+        page(path, f"{g['title']} ({CHECKED:%Y}): {len(items)} Top-Rated Ideas | GiftScope",
+             f"{g['intro'][0][:140].rsplit(' ', 1)[0]}… {len(items)} picks from {money(min(p['price'] for p in items))}.",
+             body, active="/guides/", jsonld=[art_ld, item_list(g["title"], items), faq_ld, cld], og=img(items[0]["image"], 1000))
+    cr, cld = crumbs([("/", "Home"), (None, "Gift Guides")])
+    body = f'<section class="phead"><div class="wrap">{cr}<h1>Gift guides</h1><p class="lead">Short, curated lists for the most common gift questions: by age, by budget and by what they love.</p></div></section><section class="band"><div class="wrap">{guide_tiles()}</div></section>'
+    page("/guides/", "Gift Guides for Kids and Teens | GiftScope", "Curated gift guides for babies, kids, tweens and teens: by age, budget and interest, with top-rated picks from Amazon.", body, active="/guides/", jsonld=[cld])
+
+
 def build_static():
     pages = {
         "/about/": ("About GiftScope", f"""<p>GiftScope helps parents, grandparents, aunts, uncles and friends find a great gift for a child fast, without scrolling through thousands of listings.</p>
@@ -445,6 +548,7 @@ def main():
     build_hubs()
     build_listings()
     build_finder()
+    build_guides()
     build_static()
     build_meta()
     validate()

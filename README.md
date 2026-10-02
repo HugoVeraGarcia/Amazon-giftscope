@@ -20,5 +20,5 @@ The build fails if any Amazon link lacks `tag=giftscope-20` or `rel="sponsored n
 
 ## Pages
 `/` · `/gift-finder/` · `/age/<baby|toddler|preschool|5-to-7|8-to-12|teens>/` · `/interest/<theme>/` ·
-`/budget/<under-10|under-25|under-50|under-100|over-100>/` · `/all-gifts/` · about, disclosure, privacy, 404, sitemap.xml.
+`/budget/<under-10|under-25|under-50|under-100|over-100>/` · `/guides/<slug>/` (data/guides.json) · `/all-gifts/` · about, disclosure, privacy, 404, sitemap.xml.
 Listing pages support URL filters, e.g. `/age/teens/?budget=under-25` (useful for Pinterest pins).
