@@ -137,6 +137,9 @@ FOOTER = f"""<footer class="foot">
 </footer>"""
 
 
+PIN_META = f'\n<meta name="p:domain_verify" content="{E(SITE["pinterest_verify"])}"/>' if SITE.get("pinterest_verify") else ""
+
+
 def page(path, title, desc, body, active="", jsonld=None, og=None, extra=""):
     canonical = DOMAIN + path
     ld = "".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in (jsonld or []))
@@ -147,7 +150,7 @@ def page(path, title, desc, body, active="", jsonld=None, og=None, extra=""):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)}</title>
-<meta name="description" content="{E(desc)}">
+<meta name="description" content="{E(desc)}">{PIN_META}
 <link rel="canonical" href="{canonical}">
 <meta property="og:type" content="website"><meta property="og:site_name" content="GiftScope">
 <meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(desc)}"><meta property="og:url" content="{canonical}">{ogi}

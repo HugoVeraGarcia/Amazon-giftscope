@@ -1,6 +1,7 @@
 {
  "name": "GiftScope",
  "domain": "https://gifts.specversus.com",
+ "pinterest_verify": "48ca63a6328e3f91b3010f682ae3c992",
  "tagline": "Holiday gift ideas kids actually want, sorted by age, interest and budget.",
  "ages": [
   {"slug": "baby", "label": "Babies", "range": "0–12 months", "short": "0–12 mo", "min": 0, "max": 0, "emoji": "👶",
