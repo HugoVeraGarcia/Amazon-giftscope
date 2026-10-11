@@ -28,7 +28,7 @@
       '<h3 class="card__title"><a href="' + esc(p.u) + '" target="_blank" rel="sponsored nofollow noopener">' + esc(p.n) + '</a></h3>' +
       '<p class="card__blurb">' + esc(p.d) + '</p>' +
       '<p class="card__rating"><span class="stars" style="--r:' + p.r + '" aria-hidden="true"></span><span>' + p.r.toFixed(1) + '</span><span class="muted">(' + rev(p.c) + ' ratings)</span></p>' +
-      '<div class="card__buy"><span class="price">' + money(p.p) + '<sup>*</sup></span><a class="btn btn--amz" href="' + esc(p.u) + '" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div></div></article>';
+      '<div class="card__buy"><span class="price price--band">' + esc(p.pb) + '<sup>*</sup></span><a class="btn btn--amz" href="' + esc(p.u) + '" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div></div></article>';
   }
   function results() {
     var byAge = G.filter(function (p) { return p.a.indexOf(st.age) > -1; });

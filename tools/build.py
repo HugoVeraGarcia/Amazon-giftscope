@@ -82,6 +82,11 @@ def money(x):
     return f"${x:,.2f}"
 
 
+def band(p):
+    # Exact prices are never shown (Amazon only allows them via its API): show the budget band instead.
+    return next(b["label"] for b in BUDGETS if b["min"] <= p["price"] <= b["max"])
+
+
 def age_label(p):
     lo, hi = p["age_min"], p["age_max"]
     if lo == 0 and hi <= 1:
@@ -131,7 +136,7 @@ FOOTER = f"""<footer class="foot">
  </div>
  <div class="wrap foot__legal">
   <p><strong>As an Amazon Associate I earn from qualifying purchases.</strong> Links to Amazon.com are affiliate links: we may earn a commission at no extra cost to you.</p>
-  <p>Prices and ratings were checked on Amazon.com on {CHECKED_TXT} and can change at any time; the price shown on Amazon at the time of purchase applies. Product images are served by Amazon. Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. Brand and character names belong to their owners; GiftScope is not affiliated with them.</p>
+  <p>Price ranges and ratings were checked on Amazon.com on {CHECKED_TXT} and can change at any time; the price shown on Amazon at the time of purchase applies. Product images are served by Amazon. Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates. Brand and character names belong to their owners; GiftScope is not affiliated with them.</p>
   <p>© {dt.date.today().year} GiftScope</p>
  </div>
 </footer>"""
@@ -203,7 +208,7 @@ def card(p, rank=None):
   <h3 class="card__title"><a href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">{E(p['name'])}</a></h3>
   <p class="card__blurb">{E(p['blurb'])}</p>
   <p class="card__rating"><span class="stars" style="--r:{p['rating']}" aria-hidden="true"></span><span>{p['rating']:.1f}</span><span class="muted">({reviews_txt(p['reviews'])} ratings)</span></p>
-  <div class="card__buy"><span class="price">{money(p['price'])}<sup>*</sup></span><a class="btn btn--amz" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div>
+  <div class="card__buy"><span class="price price--band">{E(band(p))}<sup>*</sup></span><a class="btn btn--amz" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div>
  </div>
 </article>"""
 
@@ -228,7 +233,7 @@ def filters(skip):
 
 
 def note():
-    return f'<p class="pnote">*Prices checked on Amazon.com on {CHECKED_TXT}. Prices change often, especially around Black Friday; check Amazon for the current price.</p>'
+    return f'<p class="pnote">*Price ranges based on Amazon.com prices checked on {CHECKED_TXT}. Prices change often, especially around Black Friday; click through for the current price.</p>'
 
 
 def item_list(name, items):
@@ -244,7 +249,7 @@ def listing(path, crumb_items, h1, intro, items, skip, emoji="", related=""):
     body = f"""<section class="phead"><div class="wrap">{cr}
  <h1>{f'<span class="phead__emoji" aria-hidden="true">{emoji}</span>' if emoji else ''}{E(h1)}</h1>
  <p class="lead">{E(intro)}</p>
- <p class="phead__facts"><span>{len(items)} gift ideas</span><span>{money(lo)} – {money(hi)}</span><span>Rated 4.3★ and up</span><span>Updated {CHECKED_TXT}</span></p>
+ <p class="phead__facts"><span>{len(items)} gift ideas</span><span>Rated 4.3★ and up</span><span>Updated {CHECKED_TXT}</span></p>
  <p class="disclose">We may earn a commission from Amazon links, at no extra cost to you.</p>
  <a class="btn btn--ghost" href="/gift-finder/">Not sure? Try the 30-second Gift Finder →</a>
 </div></section>
@@ -256,7 +261,7 @@ def listing(path, crumb_items, h1, intro, items, skip, emoji="", related=""):
 </section>
 {related}"""
     title = f"{h1} ({CHECKED:%Y}) | GiftScope"
-    desc = f"{intro[:150].rsplit(' ', 1)[0]}… {len(items)} top-rated ideas from {money(lo)}."
+    desc = f"{intro[:150].rsplit(' ', 1)[0]}… {len(items)} top-rated ideas."
     page(path, title, desc, body, active=crumb_items[1][0] if len(crumb_items) > 2 else "",
          jsonld=[item_list(h1, items), cld], og=img(items[0]["image"], 1000))
 
@@ -373,7 +378,7 @@ def build_listings():
 
 def build_finder():
     data = [{"n": p["name"], "u": p["url"], "i": p["image"], "a": p["ages"], "t": p["theme"], "b": p["budget"],
-             "p": p["price"], "r": p["rating"], "c": p["reviews"], "s": p["score"], "g": age_label(p), "d": p["blurb"]}
+             "p": p["price"], "pb": band(p), "r": p["rating"], "c": p["reviews"], "s": p["score"], "g": age_label(p), "d": p["blurb"]}
             for p in P]
     ages = "".join(f'<button type="button" class="opt" data-q="age" data-v="{g["slug"]}"><span class="opt__emoji" aria-hidden="true">{g["emoji"]}</span><b>{E(g["label"])}</b><small>{g["range"]}</small></button>' for g in AGES)
     themes = "".join(f'<button type="button" class="opt opt--sm" data-q="theme" data-v="{t["slug"]}" aria-pressed="false"><span class="opt__emoji" aria-hidden="true">{t["emoji"]}</span><b>{E(t["label"])}</b></button>' for t in THEMES)
@@ -433,7 +438,7 @@ def guide_tiles():
     for g in GUIDES:
         items = guide_items(g)
         thumbs = "".join(f'<img src="{img(p["image"], 200)}" alt="" loading="lazy" width="100" height="100">' for p in items[:3])
-        out.append(f'<a class="gtile" href="/guides/{g["slug"]}/"><span class="gtile__imgs">{thumbs}</span><span class="gtile__body"><b>{g["emoji"]} {E(g["title"])}</b><span>{E(g["pin"])}</span><small>{len(items)} picks · from {money(min(p["price"] for p in items))}</small></span></a>')
+        out.append(f'<a class="gtile" href="/guides/{g["slug"]}/"><span class="gtile__imgs">{thumbs}</span><span class="gtile__body"><b>{g["emoji"]} {E(g["title"])}</b><span>{E(g["pin"])}</span><small>{len(items)} picks</small></span></a>')
     return '<div class="gtiles">' + "".join(out) + "</div>"
 
 
@@ -445,7 +450,7 @@ def quick_picks(items):
     rows = [("Best overall", best), ("Best under $25", budget)]
     if splurge and splurge["price"] > best["price"] and splurge is not budget:
         rows.append(("Worth the splurge", splurge))
-    li = "".join(f'<li><span class="qp__lbl">{lbl}</span><a href="#pick-{p["asin"]}">{E(p["name"])}</a><span class="qp__price">{money(p["price"])}</span></li>' for lbl, p in rows if p)
+    li = "".join(f'<li><span class="qp__lbl">{lbl}</span><a href="#pick-{p["asin"]}">{E(p["name"])}</a><span class="qp__price">{E(band(p))}</span></li>' for lbl, p in rows if p)
     return f'<aside class="qp"><h2>Quick picks</h2><ol>{li}</ol></aside>'
 
 
@@ -458,7 +463,7 @@ def pick(p, i):
   <h3 class="pick__title"><a href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">{i}. {E(p['name'])}</a></h3>
   <p>{E(p['blurb'])}</p>
   <p class="card__rating"><span class="stars" style="--r:{p['rating']}" aria-hidden="true"></span><span>{p['rating']:.1f}</span><span class="muted">({reviews_txt(p['reviews'])} ratings on Amazon)</span></p>
-  <div class="card__buy"><span class="price">{money(p['price'])}<sup>*</sup></span><a class="btn btn--amz" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div>
+  <div class="card__buy"><span class="price price--band">{E(band(p))}<sup>*</sup></span><a class="btn btn--amz" href="{E(p['url'])}" target="_blank" rel="sponsored nofollow noopener">See on Amazon</a></div>
  </div>
 </article>"""
 
@@ -476,7 +481,7 @@ def build_guides():
         body = f"""<section class="phead"><div class="wrap wrap--narrow">{cr}
  <h1><span class="phead__emoji" aria-hidden="true">{g['emoji']}</span>{E(g['title'])} ({CHECKED:%Y})</h1>
  {''.join(f'<p class="lead">{E(x)}</p>' for x in g['intro'])}
- <p class="phead__facts"><span>{len(items)} picks</span><span>{money(min(p['price'] for p in items))} – {money(max(p['price'] for p in items))}</span><span>Updated {CHECKED_TXT}</span></p>
+ <p class="phead__facts"><span>{len(items)} picks</span><span>Updated {CHECKED_TXT}</span></p>
  <p class="disclose">We may earn a commission from Amazon links, at no extra cost to you.</p>
 </div></section>
 <section class="wrap wrap--narrow guide">
@@ -496,7 +501,7 @@ def build_guides():
         art_ld = {"@context": "https://schema.org", "@type": "Article", "headline": g["title"], "dateModified": DB["checked"],
                   "image": img(items[0]["image"], 1000), "publisher": {"@type": "Organization", "name": "GiftScope"}}
         page(path, f"{g['title']} ({CHECKED:%Y}): {len(items)} Top-Rated Ideas | GiftScope",
-             f"{g['intro'][0][:140].rsplit(' ', 1)[0]}… {len(items)} picks from {money(min(p['price'] for p in items))}.",
+             f"{g['intro'][0][:140].rsplit(' ', 1)[0]}… {len(items)} top-rated picks.",
              body, active="/guides/", jsonld=[art_ld, item_list(g["title"], items), faq_ld, cld], og=img(items[0]["image"], 1000))
     cr, cld = crumbs([("/", "Home"), (None, "Gift Guides")])
     body = f'<section class="phead"><div class="wrap">{cr}<h1>Gift guides</h1><p class="lead">Short, curated lists for the most common gift questions: by age, by budget and by what they love.</p></div></section><section class="band"><div class="wrap">{guide_tiles()}</div></section>'
