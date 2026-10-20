@@ -255,6 +255,7 @@ def listing(path, crumb_items, h1, intro, items, skip, emoji="", related=""):
 </div></section>
 <section class="wrap list-wrap">
  {filters(skip)}
+ <h2 class="sr-only">Gift ideas</h2>
  <div class="grid" data-grid>{''.join(card(p, i + 1) for i, p in enumerate(items))}</div>
  <p class="empty" data-empty hidden>No gifts match those filters. <button type="button" class="link-btn" data-clear>Clear filters</button></p>
  {note()}
@@ -451,7 +452,7 @@ def quick_picks(items):
     if splurge and splurge["price"] > best["price"] and splurge is not budget:
         rows.append(("Worth the splurge", splurge))
     li = "".join(f'<li><span class="qp__lbl">{lbl}</span><a href="#pick-{p["asin"]}">{E(p["name"])}</a><span class="qp__price">{E(band(p))}</span></li>' for lbl, p in rows if p)
-    return f'<aside class="qp"><h2>Quick picks</h2><ol>{li}</ol></aside>'
+    return f'<section class="qp" aria-label="Quick picks"><h2>Quick picks</h2><ol>{li}</ol></section>'
 
 
 def pick(p, i):
